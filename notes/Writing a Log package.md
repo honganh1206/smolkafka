@@ -25,3 +25,11 @@ We actively write to the **active segment**. When we fill an active segmnet, we 
 ### Segments
 
 Each segment comprises a store file and an index file. The store file stores the record data (We append to this), while the index file is where we index each record in the store file.
+
+## Indexing
+
+The index file keeps track of entries added to the log stream. It comprises a persisted file and a memory-mapped file.
+
+Reads and writes to the index file all go through the in-memory map.
+
+The service learns the next record's offset by _looking at the last entry of the index_ (reading the last 12 bytes of the file)
