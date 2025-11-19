@@ -1,3 +1,3 @@
-# proglog
+# smolkafka
 
 Distributed services in Go

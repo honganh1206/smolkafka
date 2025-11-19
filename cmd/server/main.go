@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/honganh1206/proglog/internal/server"
+	"github.com/honganh1206/smolkafka/internal/server"
 )
 
 func main() {

@@ -1,7 +1,16 @@
 package log
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"path"
 
+	api "github.com/honganh1206/smolkafka/api/v1"
+	"google.golang.org/protobuf/proto"
+)
+
+// A fixed-sized chunk that make up a log.
+// The basic storage unit of an append-only log file.
 type segment struct {
 	store *store
 	index *index
@@ -12,6 +21,7 @@ type segment struct {
 	config Config
 }
 
+// Can be invoked when the current segment hits its maximum size
 func newSegment(dir string, baseOffset uint64, c Config) (*segment, error) {
 	s := &segment{
 		baseOffset: baseOffset,
@@ -19,5 +29,57 @@ func newSegment(dir string, baseOffset uint64, c Config) (*segment, error) {
 	}
 
 	var err error
-	storeFile, err := os.OpenFile()
+	storeFile, err := os.OpenFile(
+		path.Join(dir, fmt.Sprintf("%d%s", baseOffset, ".store")),
+		os.O_RDWR|os.O_CREATE|os.O_APPEND,
+		0o644, // User read and write
+	)
+	if err != nil {
+		return nil, err
+	}
+	if s.store, err = newStore(storeFile); err != nil {
+		return nil, err
+	}
+	indexFile, err := os.OpenFile(
+		path.Join(dir, fmt.Sprintf("%d%s", baseOffset, ".index")),
+		os.O_RDWR|os.O_CREATE,
+		0o644,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if s.index, err = newIndex(indexFile, c); err != nil {
+		return nil, err
+	}
+
+	// Set the segment's next offset to prepare for the next record.
+	// We first check the relative offset of the last record in the segment.
+	if off, _, err := s.index.Read(-1); err != nil {
+		// Empty index, so the next record would be the first record
+		// and the record's offset would be the segment's base offset
+		s.nextOffset = baseOffset
+	} else {
+		// Index has at least one entry,
+		// so the offset of the next record should take the offset at the end of the segment.
+		// Without the 1, re-opening an existing segment would set nextOffset equal to the last committed offset, thus duplicating offsets and file corruption
+		s.nextOffset = baseOffset + uint64(off) + 1
+	}
+	return s, nil
+}
+
+func (s *segment) Read(off uint64) (*api.Record, error) {
+	// Read the position from the index (logical offset)
+	_, pos, err := s.index.Read(int64(off - s.baseOffset))
+	if err != nil {
+		return nil, err
+	}
+	// Read the position from the store (physical offset)
+	p, err := s.store.Read(pos)
+	if err != nil {
+		return nil, err
+	}
+
+	record := &api.Record{}
+	err = proto.Unmarshal(p, record)
+	return record, err
 }

@@ -1,4 +1,4 @@
-module github.com/honganh1206/proglog
+module github.com/honganh1206/smolkafka
 
 go 1.23.3
 

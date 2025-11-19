@@ -78,7 +78,7 @@ func (i *index) Close() error {
 	return i.file.Close()
 }
 
-// Take in an offset and return the record's logical offset (ouut) and store position (pos) in the store
+// Take in an offset and return the record's logical offset (out) and store position (pos) in the store
 func (i *index) Read(in int64) (out uint32, pos uint64, err error) {
 	if i.size == 0 {
 		// Read(-1) error here
