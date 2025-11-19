@@ -20,9 +20,9 @@ func TestIndex(t *testing.T) {
 	idx, err := newIndex(f, c)
 	require.NoError(t, err)
 
-	// Test index out of bounds?
+	// Test if have entry
 	_, _, err = idx.Read(-1)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Equal(t, f.Name(), idx.Name())
 
 	entries := []struct {

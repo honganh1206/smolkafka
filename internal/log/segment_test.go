@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	api "github.com/honganh1206/smolkafka/api/v1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +28,7 @@ func TestSegment(t *testing.T) {
 
 	for i := uint64(0); i < 3; i++ {
 		// Append max 3 records to segment
-		off, err = s.Append(want)
+		off, err := s.Append(want)
 		require.NoError(t, err)
 		// Check next offset?
 		require.Equal(t, 16+i, off)
