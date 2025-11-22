@@ -20,7 +20,7 @@ Think of the log like a table: It always orders the records by time and indexes 
 
 We cannot append to the same file forever, so _we split the log into a list of segments_. We delete old segments when the log grows too big, taking up disk space (We can use background process to do this).
 
-We actively write to the **active segment**. When we fill an active segmnet, we create new segment and make it the active segment.
+We actively write to the **active segment**. When we fill an active segment, we create new segment and make it the active segment.
 
 ### Segments
 
