@@ -5,3 +5,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Protocol Buffers]]
 
 [[Writing a Log package]]
+
+[[Server requests with gRPC]]

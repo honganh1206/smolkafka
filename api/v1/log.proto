@@ -3,9 +3,35 @@ syntax = "proto3";
 // Used as package name in generated Go code
 package log.v1;
 
-option go_package = "github.com/travisjeffery/api/log_v1";
+option go_package = "github.com/honganh1206/smollkafka/api/log_v1";
 
 message Record {
 		bytes value = 1;
 		uint64 offset = 2;
+}
+
+service Log {
+	rpc Produce(ProduceRequest) returns (ProduceResponse) {}
+	rpc Consume(ConsumeRequest) returns (ConsumeResponse) {}
+	rpc ConsumeStream(ConsumeRequest) returns (stream ConsumeResponse) {}
+	// Bi-directional.
+	// Two streams operate independently, so the clients and servers can read and write in whatever order they like.
+	// Example: The server could wait to receive all clients' requests before sending back its response (used for batches or agggregating a response over multiple requests)
+	rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
+}
+
+message ProduceRequest {
+	Record record = 1;
+}
+
+message ProduceResponse {
+	uint64 offset = 1;
+}
+
+message ConsumeRequest {
+	uint64 offset = 1;
+}
+
+message ConsumeResponse {
+	Record record = 2;
 }
