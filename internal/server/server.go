@@ -4,6 +4,7 @@ import (
 	"context"
 
 	api "github.com/honganh1206/smolkafka/api/v1"
+	"google.golang.org/grpc"
 )
 
 type Config struct {
@@ -16,6 +17,25 @@ type grpcServer struct {
 	// Must be embedded to have forward compatible implementation??
 	api.UnimplementedLogServer
 	*Config
+}
+
+// We are not tying ourself with a specific log implementation
+// because we might need to pass in a different log implementation based on our needs at the time.
+type CommitLog interface {
+	Append(*api.Record) (uint64, error)
+	Read(uint64) (*api.Record, error)
+}
+
+// Create a gRPC server and register our service with it
+func NewGRPCServer(config *Config) (*grpc.Server, error) {
+	gsrv := grpc.NewServer()
+	srv, err := newgrpcServer(config)
+	if err != nil {
+		return nil, err
+	}
+
+	api.RegisterLogServer(gsrv, srv)
+	return gsrv, nil
 }
 
 func newgrpcServer(config *Config) (srv *grpcServer, err error) {
@@ -76,7 +96,7 @@ func (s *grpcServer) ConsumeStream(req *api.ConsumeRequest, stream api.Log_Consu
 			res, err := s.Consume(stream.Context(), req)
 			switch err.(type) {
 			case nil:
-			case api.ErrOutOfRange:
+			case api.ErrOffsetOutOfRange:
 				continue
 			default:
 				return err

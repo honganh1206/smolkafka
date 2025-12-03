@@ -68,7 +68,7 @@ func setupTest(t *testing.T, fn func(*Config)) (
 		// Each function will interact with the commit log
 		fn(cfg)
 	}
-	server, err := NewGrpcServer(cfg)
+	server, err := NewGRPCServer(cfg)
 	require.NoError(t, err)
 
 	go func() {
