@@ -10,24 +10,42 @@ gencert:
 	# Generate CA's private key and matching CA cert
 	cfssl gencert \
 		-initca tests/ca-csr.json | cfssljson -bare ca
+
 	# Produce server's certificate and its private key
+	# How it works
+	# Take a CSR, sign it with provided CA materials
+	# Output to a JSON payload containing certificate, private key and metadata
 	cfssl gencert \
-		# How it works:
-		# Take a CSR, sign it with provided CA materials
-		# Output to a JSON payload containing certificate, private key and metadata
 		-ca=ca.pem \
 		-ca-key=ca-key.pem \
 		-config=tests/ca-config.json \
 		-profile=server \
 		tests/server-csr.json | cfssljson -bare server
+
 	# Produce client's certificate and private key
 	cfssl gencert \
-		# Using the same materials as server?
 		-ca=ca.pem \
 		-ca-key=ca-key.pem \
 		-config=tests/ca-config.json \
 		-profile=client \
 		tests/client-csr.json | cfssljson -bare client
+
+	cfssl gencert \
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=tests/ca-config.json \
+		-profile=client \
+		-cn="root" \
+		tests/client-csr.json | cfssljson -bare root-client
+
+	cfssl gencert \
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=tests/ca-config.json \
+		-profile=client \
+		-cn="nobody" \
+		tests/client-csr.json | cfssljson -bare nobody-client
+
 	mv *.pem *.csr ${CONFIG_PATH}
 
 .PHONY: compile
