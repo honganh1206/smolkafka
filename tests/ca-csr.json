@@ -1,0 +1,17 @@
+{
+  "CN": "My Awesome CA",
+  "key": {
+    "_comment": "Shared cypher suit between server and client",
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "VN",
+      "L": "HN",
+      "ST": "Hanoi",
+      "O": "My Awesome Company",
+      "OU": "CA Services"
+    }
+  ]
+}

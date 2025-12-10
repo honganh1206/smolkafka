@@ -1,0 +1,15 @@
+{
+  "signing": {
+    "_comment": "CA can generate client and certificates that will expire after a year, and the certificates can be used for digital signatures, encrypting keys and auth.",
+    "profiles": {
+      "server": {
+        "expiry": "8760h",
+        "usages": ["signing", "key encipherment", "server auth"]
+      },
+      "client": {
+        "expiry": "8760h",
+        "usages": ["signing", "key encipherment", "client auth"]
+      }
+    }
+  }
+}

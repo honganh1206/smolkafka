@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	api "github.com/honganh1206/smolkafka/api/v1"
+	"github.com/honganh1206/smolkafka/internal/config"
 	"github.com/honganh1206/smolkafka/internal/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
@@ -44,16 +45,37 @@ func setupTest(t *testing.T, fn func(*Config)) (
 	// Create a listener - server-side component that waits for incoming connection attempts.
 	// This listener uses the Transmission Control Protocol - Data arrives sequentially and error-free.
 	// Small tip? Using port 0 means the OS assigns a free port for us.
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	// This DialOption disables transport security for this specific ClientConn
-	clientOptions := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	clientTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CAFile:   config.CAFile,
+		KeyFile:  config.ClientKeyFile,
+		CertFile: config.ClientCertFile,
+	})
+	require.NoError(t, err)
+
+	clientCreds := credentials.NewTLS(clientTLSConfig)
+
+	// Configure TLS credentials to use our CA as client's root CA to verify the server
+	clientOptions := []grpc.DialOption{grpc.WithTransportCredentials(clientCreds)}
 
 	// Create a listener on the local address our server will run on.
 	// This listener listens to our gRPC server for data packets.
 	cc, err := grpc.NewClient(l.Addr().String(), clientOptions...)
 	require.NoError(t, err)
+
+	// Enable the server to handle TLS connections
+	serverTLSConfig, err := config.SetupTLSConfig(config.TLSConfig{
+		CertFile:      config.ServerCertFile,
+		KeyFile:       config.ServerKeyFile,
+		CAFile:        config.CAFile,
+		ServerAddress: l.Addr().String(),
+		Server:        true,
+	})
+	require.NoError(t, err)
+
+	serverCreds := credentials.NewTLS(serverTLSConfig)
 
 	dir, err := os.MkdirTemp("", "server-test")
 	require.NoError(t, err)
@@ -68,7 +90,7 @@ func setupTest(t *testing.T, fn func(*Config)) (
 		// Each function will interact with the commit log
 		fn(cfg)
 	}
-	server, err := NewGRPCServer(cfg)
+	server, err := NewGRPCServer(cfg, grpc.Creds(serverCreds))
 	require.NoError(t, err)
 
 	go func() {

@@ -1,0 +1,18 @@
+{
+  "_comment": "CN field is important. It specifies the client's identity",
+  "CN": "client",
+  "hosts": [""],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "VN",
+      "L": "HN",
+      "ST": "Hanoi",
+      "O": "My Company",
+      "OU": "Distributed Services"
+    }
+  ]
+}

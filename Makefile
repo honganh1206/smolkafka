@@ -1,3 +1,36 @@
+# Where to put generated certs
+CONFIG_PATH=${HOME}/.proglog/
+
+.PHONY: init
+init:
+	mkdir -p ${CONFIG_PATH}
+
+.PHONY: gencert
+gencert:
+	# Generate CA's private key and matching CA cert
+	cfssl gencert \
+		-initca tests/ca-csr.json | cfssljson -bare ca
+	# Produce server's certificate and its private key
+	cfssl gencert \
+		# How it works:
+		# Take a CSR, sign it with provided CA materials
+		# Output to a JSON payload containing certificate, private key and metadata
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=tests/ca-config.json \
+		-profile=server \
+		tests/server-csr.json | cfssljson -bare server
+	# Produce client's certificate and private key
+	cfssl gencert \
+		# Using the same materials as server?
+		-ca=ca.pem \
+		-ca-key=ca-key.pem \
+		-config=tests/ca-config.json \
+		-profile=client \
+		tests/client-csr.json | cfssljson -bare client
+	mv *.pem *.csr ${CONFIG_PATH}
+
+.PHONY: compile
 compile:
 	protoc api/v1/*.proto \
 			--go_out=. \
@@ -5,5 +38,7 @@ compile:
 			--go_opt=paths=source_relative \
 			--go-grpc_opt=paths=source_relative \
 			--proto_path=.
+
+.PHONY: test
 test:
 	go test -race ./...
