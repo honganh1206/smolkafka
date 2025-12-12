@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	api "github.com/honganh1206/smolkafka/api/v1"
+	"github.com/honganh1206/smolkafka/internal/auth"
 	"github.com/honganh1206/smolkafka/internal/config"
 	"github.com/honganh1206/smolkafka/internal/log"
 	"github.com/stretchr/testify/require"
@@ -58,9 +59,10 @@ func setupTest(t *testing.T, fn func(*Config)) (
 		[]grpc.DialOption,
 	) {
 		tlsConfig, err := config.SetupTLSConfig(config.TLSConfig{
+			CertFile: crtPath,
+			KeyFile:  keyPath,
 			CAFile:   config.CAFile,
-			KeyFile:  config.ClientKeyFile,
-			CertFile: config.ClientCertFile,
+			Server:   false, // Use RootCAs?
 		})
 		require.NoError(t, err)
 
@@ -74,20 +76,20 @@ func setupTest(t *testing.T, fn func(*Config)) (
 		conn, err := grpc.NewClient(l.Addr().String(), opts...)
 		require.NoError(t, err)
 
-		client = api.NewLogClient(conn)
+		client := api.NewLogClient(conn)
 		return conn, client, opts
 	}
 
 	// Superuser, allowed to read and write
 	var rootConn *grpc.ClientConn
-	rootConn, rootClient, _ := newClient(
+	rootConn, rootClient, _ = newClient(
 		config.RootClientCertFile,
 		config.RootClientKeyFile,
 	)
 
 	// Allowed to do nothing
 	var nobodyConn *grpc.ClientConn
-	nobodyConn, nobodyClient, _ := newClient(
+	nobodyConn, nobodyClient, _ = newClient(
 		config.NobodyClientCertFile,
 		config.NobodyClientKeyFile,
 	)
@@ -110,8 +112,11 @@ func setupTest(t *testing.T, fn func(*Config)) (
 	clog, err := log.NewLog(dir, log.Config{})
 	require.NoError(t, err)
 
+	authorizer := auth.New(config.ACLModelFile, config.ACLPolicyFile)
+
 	cfg = &Config{
-		CommitLog: clog,
+		Authorizer: authorizer,
+		CommitLog:  clog,
 	}
 	if fn != nil {
 		// Each function will interact with the commit log

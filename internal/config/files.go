@@ -15,6 +15,8 @@ var (
 	RootClientKeyFile    = configFile("root-client-key.pem")
 	NobodyClientCertFile = configFile("nobody-client.pem")
 	NobodyClientKeyFile  = configFile("nobody-client-key.pem")
+	ACLModelFile         = configFile("model.conf")
+	ACLPolicyFile        = configFile("policy.csv")
 )
 
 // Get the config files from the home dir's folder

@@ -49,12 +49,14 @@ func SetupTLSConfig(cfg TLSConfig) (*tls.Config, error) {
 				cfg.CAFile,
 			)
 		}
+
+		// Mutual TLS
 		if cfg.Server {
-			// Server configs
+			// Server needs to verify clients
 			tlsConfig.ClientCAs = ca
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		} else {
-			// Client configs
+			// Client needs to verify the server
 			tlsConfig.RootCAs = ca
 		}
 		tlsConfig.ServerName = cfg.ServerAddress

@@ -35,8 +35,9 @@ sequenceDiagram
 ## Mutual TLS connection/Two-way connection
 
 - Issue certificates: The CA signs the server's certificate using its private key.
-- Form a trust chain: Clients ships with a store of trusted CA public keys so it can verify CA signature on server certifificate.
+- Form a trust chain: Clients ships with a store of trusted CA public keys, so it can verify CA signature on server certifificate.
 - Enable server authentication: The CA works as a trust anchor between the client and the server. Without CA, the client cannot trust a certificate, even if the server sends a valid public key.
+- The server can also requests a client cert and checks whether it chains back to any CA.
 
 ```mermaid
 
