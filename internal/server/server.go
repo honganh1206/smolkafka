@@ -2,10 +2,18 @@ package server
 
 import (
 	"context"
+	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	api "github.com/honganh1206/smolkafka/api/v1"
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -45,18 +53,49 @@ type Authorizer interface {
 }
 
 // Create a gRPC server and register our service with it
-func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	opts = append(opts,
+func NewGRPCServer(config *Config, grpcOpts ...grpc.ServerOption) (*grpc.Server, error) {
+	logger := zap.L().Named("server")
+	zapOpts := []grpc_zap.Option{
+		grpc_zap.WithDurationField(
+			func(duration time.Duration) zapcore.Field {
+				return zap.Int64(
+					"grpc.time_ns",
+					duration.Nanoseconds(),
+				)
+			},
+		),
+	}
+
+	trace.ApplyConfig(trace.Config{
+		// Always record traces in detail
+		// Also not to be used in prod due to performance impact
+		DefaultSampler: trace.AlwaysSample(),
+	})
+	// What views we have here?
+	// Bytes received/sent per RPC + Latency + Completed RPCs
+	err := view.Register(ocgrpc.DefaultClientViews...)
+	if err != nil {
+		return nil, err
+	}
+
+	grpcOpts = append(grpcOpts,
 		// 1st elem - Per-request (per-stream invocation) interceptor
 		grpc.StreamInterceptor(
 			// One interceptor out of chain of interceptors
 			grpc_middleware.ChainStreamServer(
-				// Unary interceptor/middleware (single request - single response) performing per-request auth
+				grpc_ctxtags.StreamServerInterceptor(),
 				grpc_auth.StreamServerInterceptor(authenticate),
+				grpc_zap.StreamServerInterceptor(logger, zapOpts...),
 			)),
 		// 2nd elem - Run for every RPC invocation
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_auth.UnaryServerInterceptor(authenticate))))
-	gsrv := grpc.NewServer(opts...)
+		// Unary interceptor/middleware (single request - single response) performing per-request auth
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			// Side note: The gRPC integration libs for different tools are super useful :)
+			grpc_ctxtags.UnaryServerInterceptor(),
+			grpc_zap.UnaryServerInterceptor(logger, zapOpts...),
+			grpc_auth.UnaryServerInterceptor(authenticate))))
+
+	gsrv := grpc.NewServer(grpcOpts...)
 	srv, err := newgrpcServer(config)
 	if err != nil {
 		return nil, err

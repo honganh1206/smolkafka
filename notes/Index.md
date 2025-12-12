@@ -9,3 +9,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Server requests with gRPC]]
 
 [[Secure your services]]
+
+[[Observe your systems]]
