@@ -11,3 +11,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Secure your services]]
 
 [[Observe your systems]]
+
+[[Server-to-server Service Discovery]]
