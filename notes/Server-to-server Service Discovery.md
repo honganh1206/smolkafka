@@ -42,3 +42,5 @@ Serf is quicker for us to build our service against, and moving to a stand-alone
 4. Handle Serf's cluster discovery events.
 
 Each member has a status, which is either Alive - Leaving - Left - Failed (unexpectedly leave the cluster).
+
+## Request discovered services

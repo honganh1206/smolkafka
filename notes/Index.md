@@ -13,3 +13,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Observe your systems]]
 
 [[Server-to-server Service Discovery]]
+
+[[Replicate Logs]]
