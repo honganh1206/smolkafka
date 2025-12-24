@@ -40,7 +40,7 @@ func TestAgent(t *testing.T) {
 
 	require.NoError(t, err)
 
-	var agents []*agent
+	var agents []*Agent
 
 	// Set up a three-node cluster
 	for i := 0; i < 3; i++ {
@@ -129,7 +129,7 @@ func TestAgent(t *testing.T) {
 
 func client(
 	t *testing.T,
-	a *agent,
+	a *Agent,
 	tlsConfig *tls.Config,
 ) api.LogClient {
 	tlsCreds := credentials.NewTLS(tlsConfig)

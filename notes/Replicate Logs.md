@@ -25,3 +25,7 @@ Why? Each consumer can pull based on:
 > For short-running programs, we can make a `run` package that exports the `Run()` function responsible for running the program.
 >
 > For long-running programs, we make an `agent` package that exports an `Agent` type managing different components and processes that make up the service.
+
+## Agents
+
+Long-running software components acting on the behalf of a system/controlling entity to observe state/make decisions/perform actions close to the system.
