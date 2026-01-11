@@ -43,7 +43,7 @@ func TestAgent(t *testing.T) {
 	var agents []*Agent
 
 	// Set up a three-node cluster
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ports := dynaport.Get(2)
 		// Serf's address
 		bindAddr := fmt.Sprintf("%s:%d", "127.0.0.1", ports[0])
@@ -55,10 +55,9 @@ func TestAgent(t *testing.T) {
 		var startJoinAddrs []string
 		if i != 0 {
 			// New agent (2nd and 3rd node) joining the cluster
-			startJoinAddrs = append(startJoinAddrs, agents[0].Config.BindAddr)
+			startJoinAddrs = append(startJoinAddrs, agents[0].BindAddr)
 		}
 
-		// Does an agent represent a server/node?
 		agent, err := New(Config{
 			NodeName:        fmt.Sprintf("%d", i),
 			StartJoinAddrs:  startJoinAddrs,
@@ -81,7 +80,7 @@ func TestAgent(t *testing.T) {
 		for _, agent := range agents {
 			err := agent.Shutdown()
 			require.NoError(t, err)
-			require.NoError(t, os.RemoveAll(agent.Config.DataDir))
+			require.NoError(t, os.RemoveAll(agent.DataDir))
 		}
 	}()
 

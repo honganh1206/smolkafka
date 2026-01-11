@@ -15,3 +15,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Server-to-server Service Discovery]]
 
 [[Replicate Logs]]
+
+[[Service cordination]]

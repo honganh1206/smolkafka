@@ -22,9 +22,9 @@ Why? Each consumer can pull based on:
 - How much it wants to pull
 - What it can handle
 
-> For short-running programs, we can make a `run` package that exports the `Run()` function responsible for running the program.
->
-> For long-running programs, we make an `agent` package that exports an `Agent` type managing different components and processes that make up the service.
+For short-running programs, we can make a `run` package that exports the `Run()` function responsible for running the program.
+
+For long-running programs, we make an `agent` package that exports an `Agent` type managing different components and processes that make up the service.
 
 ## Agents
 
