@@ -76,15 +76,44 @@ func (l *DistributedLog) setupRaft(dataDir string) error {
 	}
 
 	maxPool := 5
-	timeout := 10 * ti(
-		AppendRequestType,
-		&api.ProduceRequest{Record: record},
-	)
-	if err != nil {
-		return 0, err
+	timeout := 10 * time.Second
+	transport := raft.NewNetworkTransport(l.config.Raft.StreamLayer, maxPool, timeout, os.Stderr)
+
+	config := raft.DefaultConfig()
+	config.LocalID = l.config.Raft.LocalID
+	if l.config.Raft.HeartbeatTimeout != 0 {
+		config.HeartbeatTimeout = l.config.Raft.HeartbeatTimeout
+	}
+	if l.config.Raft.ElectionTimeout != 0 {
+		config.ElectionTimeout = l.config.Raft.ElectionTimeout
+	}
+	if l.config.Raft.LeaderLeaseTimeout != 0 {
+		config.LeaderLeaseTimeout = l.config.Raft.LeaderLeaseTimeout
+	}
+	if l.config.Raft.CommitTimeout != 0 {
+		config.CommitTimeout = l.config.Raft.CommitTimeout
 	}
 
-	return res.(*api.ProduceResponse).Offset, nil
+	l.raft, err = raft.NewRaft(config, fsm, logStore, stableStore, snapshotStore, transport)
+	if err != nil {
+		return err
+	}
+
+	// Need to discard the current state?
+	hasState, err := raft.HasExistingState(logStore, stableStore, snapshotStore)
+	if err != nil {
+		return err
+	}
+	if l.config.Raft.Bootstrap && !hasState {
+		config := raft.Configuration{
+			Servers: []raft.Server{{
+				ID: config.LocalID,
+				Address: transport.LocalAddr(),
+			}},
+		}
+		err = l.raft.BootstrapCluster(config).Error()
+	}
+	return err
 }
 
 func (l *DistributedLog) apply(reqType RequestType, req proto.Message) (any, error) {
