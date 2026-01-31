@@ -14,6 +14,14 @@ Candidates will continuously hold elections until there is a winner.
 
 ## Raft servers
 
+A Raft instance consists of:
+
+- A finite-state machine (FSM) that applies the command we give Raft
+- A log store where Raft stores the commands
+- A stable store where Raft stores the cluster's configs
+- A snapshot store where Raft stores compact snapshots of its data
+- A transport that Raft uses to connect with the server's peers
+
 Every Raft server has a **term**: An increasing integer telling other servers how authoritative and current this server is.
 
 Terms work as a *logical clock* to capture chronological and causal relationships in distributed systems.
