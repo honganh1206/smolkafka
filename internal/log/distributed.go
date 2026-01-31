@@ -2,15 +2,18 @@ package log
 
 import (
 	"bytes"
+	"crypto/tls"
+	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	api "github.com/honganh1206/smolkafka/api/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 type DistributedLog struct {
@@ -107,7 +110,7 @@ func (l *DistributedLog) setupRaft(dataDir string) error {
 	if l.config.Raft.Bootstrap && !hasState {
 		config := raft.Configuration{
 			Servers: []raft.Server{{
-				ID: config.LocalID,
+				ID:      config.LocalID,
 				Address: transport.LocalAddr(),
 			}},
 		}
@@ -116,6 +119,7 @@ func (l *DistributedLog) setupRaft(dataDir string) error {
 	return err
 }
 
+// Apply a command to the FSM
 func (l *DistributedLog) apply(reqType RequestType, req proto.Message) (any, error) {
 	var buf bytes.Buffer
 	_, err := buf.Write([]byte{byte(reqType)})
@@ -134,6 +138,7 @@ func (l *DistributedLog) apply(reqType RequestType, req proto.Message) (any, err
 	}
 
 	timeout := 10 * time.Second
+	// Return an ApplyFuture, a Raft consenses that has not been completed yet
 	// Must be run on leader else fail
 	future := l.raft.Apply(buf.Bytes(), timeout)
 	if future.Error() != nil {
@@ -152,6 +157,77 @@ func (l *DistributedLog) apply(reqType RequestType, req proto.Message) (any, err
 
 func (l *DistributedLog) Read(offset uint64) (*api.Record, error) {
 	return l.log.Read(offset)
+}
+
+/// Join the server to the Raft cluster
+func (l *DistributedLog) Join(id, addr string) error {
+	// Get the latest? config? Why?
+	configFuture := l.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		return err
+	}
+	serverID := raft.ServerID(id)
+	serverAddr := raft.ServerAddress(addr)
+	for _, srv := range configFuture.Configuration().Servers {
+		if srv.ID == serverID || srv.Address == serverAddr {
+			if srv.ID == serverID && srv.Address == serverAddr {
+				// Already joined
+				return nil
+			}
+			// Will remove later until something completes?
+			removeFuture := l.raft.RemoveServer(serverID, 0, 0)
+			if err := removeFuture.Error(); err != nil {
+				return err
+			}
+		}
+	}
+	// A way to work asynchronously?
+	// server read-only eventually consistent state?
+	// but will increase probability that replications and elections take longer
+	addFuture := l.raft.AddVoter(serverID, serverAddr, 0, 0)
+	if err := addFuture.Error(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (l *DistributedLog) Leave(id string) error {
+	removeFuture := l.raft.RemoveServer(raft.ServerID(id), 0, 0)
+	return removeFuture.Error()
+}
+
+// Block until the cluster as elected a leader or timeout
+func (l *DistributedLog) WaitForLeader(timeout time.Duration) error {
+	timeoutc := time.After(timeout)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <- timeoutc:
+			return fmt.Errorf("timedout" )
+		case <- ticker.C:
+			if l := l.raft.Leader(); l != "" {
+				// Leader is here
+				return nil
+			}
+		}
+	}
+}
+
+func (l *DistributedLog) Close()error {
+	f := l.raft.Shutdown()
+	if err := f.Error(); err != nil {
+		return err
+	}
+	return l.log.Close()
+}
+
+func (l *DistributedLog) Append(record *api.Record) (uint64, error) {
+	res, err := l.apply(AppendRequestType, &api.ProduceRequest{Record: record})
+	if err != nil {
+		return 0, err
+	}
+	return res.(*api.ProduceResponse).Offset, nil
 }
 
 var _ raft.FSM = (*fsm)(nil)
@@ -298,8 +374,8 @@ func (l *logStore) StoreLogs(records []*raft.Log) error {
 	for _, record := range records {
 		if _, err := l.Append(&api.Record{
 			Value: record.Data,
-			Term: record.Term,
-			Type: uint32(record.Type),
+			Term:  record.Term,
+			Type:  uint32(record.Type),
 		}); err != nil {
 			return err
 		}
@@ -309,4 +385,86 @@ func (l *logStore) StoreLogs(records []*raft.Log) error {
 
 func (l *logStore) DeleteRange(min, max uint64) error {
 	return l.Truncate(max)
+}
+
+var _ raft.StreamLayer = (*StreamLayer)(nil)
+
+// Low-level stream abstraction to connect with Raft servers.
+type StreamLayer struct {
+	ln net.Listener
+	// Accept incoming connections
+	serverTLSConfig *tls.Config
+	// Create outgoing connections
+	peerTLSConfig *tls.Config
+}
+
+func NewStreamLayer(
+	ln net.Listener,
+	serverTLSConfig,
+	peerTLSConfig *tls.Config,
+) *StreamLayer {
+	return &StreamLayer{
+		ln:              ln,
+		serverTLSConfig: serverTLSConfig,
+		peerTLSConfig:   peerTLSConfig,
+	}
+}
+
+const RaftRPC = 1
+
+// / Make outgoing connections to other servers in the Raft cluster.
+func (s *StreamLayer) Dial(
+	addr raft.ServerAddress,
+	timeout time.Duration,
+) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: timeout}
+	conn, err := dialer.Dial("tcp", string(addr))
+	if err != nil {
+		return nil, err
+	}
+
+	// Identify to mux
+	// so we can multiplex Raft on the same port as our Log gRPC requests(??)
+	_, err = conn.Write([]byte{byte(RaftRPC)})
+	if err != nil {
+		return nil, err
+	}
+	if s.peerTLSConfig != nil {
+		conn = tls.Client(conn, s.peerTLSConfig)
+	}
+	return conn, err
+}
+
+// Accept the incoming connections and create a server-side TLS connection
+func (s *StreamLayer) Accept() (net.Conn, error) {
+	conn, err := s.ln.Accept()
+	if err != nil {
+		return nil, err
+	}
+
+	// Check 1st byte as multiplex Raft?
+	b := make([]byte, 1)
+	_, err = conn.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	if bytes.Compare([]byte{byte(RaftRPC)}, b) != 0 {
+		return nil, fmt.Errorf("not a raft rpc")
+	}
+
+	if s.serverTLSConfig != nil {
+		// Why return here?
+		return tls.Server(conn, s.serverTLSConfig), nil
+	}
+
+	return conn, nil
+}
+
+func (s *StreamLayer) Close() error {
+	return s.ln.Close()
+}
+
+func (s *StreamLayer) Addr() net.Addr {
+	return s.ln.Addr()
 }

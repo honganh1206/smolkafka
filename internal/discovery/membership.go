@@ -3,6 +3,7 @@ package discovery
 import (
 	"net"
 
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"go.uber.org/zap"
 )
@@ -144,8 +145,14 @@ func (m *Membership) handleLeave(member serf.Member) {
 	}
 }
 
+// We log all handle error as critical,
+// but if the node is a non-leader, we expect these errors and not log them
 func (m *Membership) logError(err error, msg string, member serf.Member) {
-	m.logger.Error(
+	log := m.logger.Error
+	if err == raft.ErrNotLeader {
+		log = m.logger.Debug
+	}
+	log(
 		msg,
 		zap.Error(err),
 		zap.String("name", member.Name),

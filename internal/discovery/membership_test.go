@@ -49,19 +49,20 @@ func TestMembership(t *testing.T) {
 		// What is this scenario?
 		// Seem like at the start there is 1 membership
 		// then 2 join and none leaves
-		return 2 == len(handler.joins) &&
-			3 == len(m[0].Members()) &&
-			0 == len(handler.leaves)
+		return len(handler.joins) == 2 &&
+			len(m[0].Members()) == 3 &&
+			len(handler.leaves) == 0
 	}, 3*time.Second, 250*time.Millisecond)
 
 	require.NoError(t, m[2].Leave())
 
 	require.Eventually(t, func() bool {
-		return 2 == len(handler.joins) &&
-			3 == len(m[0].Members()) &&
-			// A membership has a registry storing other memberships' info. One node has info of other nodes
+		return len(handler.joins) == 2 &&
+			len(m[0].Members()) == 3 &&
+			// A membership has a registry storing other memberships' info. 
+			// One node has info of other nodes
 			serf.StatusLeft == m[0].Members()[2].Status &&
-			1 == len(handler.leaves)
+			len(handler.leaves) == 1
 	}, 3*time.Second, 250*time.Millisecond)
 
 	// Confirm Leave() has been invoked twice

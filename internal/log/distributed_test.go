@@ -58,54 +58,55 @@ func TestMultipleNodes(t *testing.T) {
 			require.NoError(t, err)
 		}
 		logs = append(logs, l)
-
-		// Test #1: Check if Raft replicates the records to its followers
-		records := []*api.Record{
-			{Value: []byte("first")},
-			{Value: []byte("second")},
-		}
-
-		for _, record := range records {
-			off, err := logs[0].Append(record)
-			require.NoError(t, err)
-
-			require.Eventually(t, func() bool {
-				for j := range nodeCount {
-					got, err := logs[j].Read(off)
-					if err != nil {
-						return false
-					}
-					record.Offset = off
-					if !reflect.DeepEqual(got.Value, record.Value) {
-						return false
-					}
-				}
-				return true
-				// NOTE: Are we being generous with wait and tick time?
-			}, 500*time.Millisecond, 50*time.Millisecond)
-		}
-
-		// Test #2: Test leader stop replicating to a server that has left the cluster
-		err = logs[0].Leave("1")
-		require.NoError(t, err)
-		// Time for leader and folllowers to acknowledge the new leave?
-		time.Sleep(50 * time.Millisecond)
-
-		off, err := logs[0].Append(&api.Record{
-			Value: []byte("third"),
-		})
-		require.NoError(t, err)
-
-		time.Sleep(50 * time.Millisecond)
-
-		// Since node 1 leaves the cluster, no replication
-		record, err := logs[1].Read(off)
-		require.IsType(t, api.ErrOffsetOutOfRange{}, err)
-		require.Nil(t, record)
-
-		record, err = logs[2].Read(off)
-		require.NoError(t, err)
-		require.Equal(t, []byte("third"), record.Value)
-		require.Equal(t, off, record.Offset)
 	}
+
+	// Test #1: Check if Raft replicates the records to its followers
+	records := []*api.Record{
+		{Value: []byte("first")},
+		{Value: []byte("second")},
+	}
+
+	for _, record := range records {
+		off, err := logs[0].Append(record)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			for j := range nodeCount {
+				// TODO: Out of range 1 with length 1
+				got, err := logs[j].Read(off)
+				if err != nil {
+					return false
+				}
+				record.Offset = off
+				if !reflect.DeepEqual(got.Value, record.Value) {
+					return false
+				}
+			}
+			return true
+			// NOTE: Are we being generous with wait and tick time?
+		}, 500*time.Millisecond, 50*time.Millisecond)
+	}
+
+	// Test #2: Test leader stop replicating to a server that has left the cluster
+	err := logs[0].Leave("1")
+	require.NoError(t, err)
+	// Time for leader and folllowers to acknowledge the new leave?
+	time.Sleep(50 * time.Millisecond)
+
+	off, err := logs[0].Append(&api.Record{
+		Value: []byte("third"),
+	})
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Since node 1 leaves the cluster, no replication
+	record, err := logs[1].Read(off)
+	require.IsType(t, api.ErrOffsetOutOfRange{}, err)
+	require.Nil(t, record)
+
+	record, err = logs[2].Read(off)
+	require.NoError(t, err)
+	require.Equal(t, []byte("third"), record.Value)
+	require.Equal(t, off, record.Offset)
 }
