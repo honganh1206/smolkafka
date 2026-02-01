@@ -412,7 +412,7 @@ func NewStreamLayer(
 
 const RaftRPC = 1
 
-// / Make outgoing connections to other servers in the Raft cluster.
+// Make outgoing connections to other servers in the Raft cluster.
 func (s *StreamLayer) Dial(
 	addr raft.ServerAddress,
 	timeout time.Duration,
@@ -449,7 +449,7 @@ func (s *StreamLayer) Accept() (net.Conn, error) {
 		return nil, err
 	}
 
-	if bytes.Compare([]byte{byte(RaftRPC)}, b) != 0 {
+	if !bytes.Equal([]byte{byte(RaftRPC)}, b) {
 		return nil, fmt.Errorf("not a raft rpc")
 	}
 

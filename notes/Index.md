@@ -16,4 +16,4 @@ A good resource teaches you how to do something by and explains the big ideas be
 
 [[Replicate Logs]]
 
-[[Service cordination]]
+[[Service coordination]]

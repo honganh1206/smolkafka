@@ -52,3 +52,13 @@ The leader then tracks the highest committed offset and sends this in the reques
 > [!tip] Number of servers in a Raft cluster.
 > Recommended number of servers in a Raft cluster is 3 (tolerate 1 server failure) and 5 (tolerate 2 server failures).
 > Odd number cluster sizes are recommended because Raft will handle (N-1)/2 failures.
+
+### Multiplex to run multiple servers on one port
+
+Server different services on the same port.
+
+Many distributed services that use Raft multiplex Raft with other services like an RPC service.
+
+We need to multiplex the connection *after the TLS handshake* since then we can differentiate the connections by see the decrypted packets -> See if it's gRPC or Raft connection. 
+
+We identify Raft connections by *writing number 1 as the 1st byte*. For gRPC connections, we send number 2 as the 1st byte by passing a custom dialer to the gRPC client. 

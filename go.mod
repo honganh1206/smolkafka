@@ -35,6 +35,7 @@ require (
 	github.com/miekg/dns v1.1.56 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
+	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tysonmote/gommap v0.0.3 // indirect
 	go.opencensus.io v0.24.0 // indirect
