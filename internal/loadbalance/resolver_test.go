@@ -59,10 +59,9 @@ func TestResolver(t *testing.T) {
 
 	r := &Resolver{}
 	_, err = r.Build(
-		// A target for gRPC
+		// A target for gRPC - use Path (not Host) since Endpoint() reads from Path
 		resolver.Target{
-			// TODO: Mismatching types
-			URL: url.URL{Host: l.Addr().String()},
+			URL: url.URL{Path: "/" + l.Addr().String()},
 		},
 		conn,
 		opts,
@@ -82,7 +81,6 @@ func TestResolver(t *testing.T) {
 			},
 		},
 	}
-	// TODO: Actual has nil addresses
 	require.Equal(t, wantState, conn.state)
 
 	conn.state.Addresses = nil

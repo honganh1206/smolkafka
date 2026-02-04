@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	api "github.com/honganh1206/smolkafka/api/v1"
 	"google.golang.org/protobuf/proto"
 )

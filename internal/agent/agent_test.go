@@ -11,6 +11,7 @@ import (
 	"github.com/honganh1206/dynaport"
 	api "github.com/honganh1206/smolkafka/api/v1"
 	"github.com/honganh1206/smolkafka/internal/config"
+	"github.com/honganh1206/smolkafka/internal/loadbalance"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -100,23 +101,21 @@ func TestAgent(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	// Consume the just-produced record
-	consumeResponse, err := leaderClient.Consume(
-		context.Background(),
-		&api.ConsumeRequest{
-			Offset: produceResponse.Offset,
-		},
-	)
-	require.NoError(t, err)
-	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
-
-	// Check another node to replicate the log
 
 	// wait for replication to finish
 	// since our replication works asynchronously across servers
 	time.Sleep(3 * time.Second)
 
+	// Consume the just-produced record
+	consumeResponse, err := leaderClient.Consume(
+		context.Background(),
+		&api.ConsumeRequest{
+			Offset: produceResponse.Offset, },)
+	require.NoError(t, err)
+	require.Equal(t, consumeResponse.Record.Value, []byte("foo"))
+
 	followerClient := client(t, agents[1], peerTLSConfig)
+	// Check another node to replicate the log
 	consumeResponse, err = followerClient.Consume(
 		context.Background(),
 		&api.ConsumeRequest{
@@ -149,11 +148,12 @@ func client(
 	tlsCreds := credentials.NewTLS(tlsConfig)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(tlsCreds)}
 
-	rpcAddr, err := a.Config.RPCAddr()
+	rpcAddr, err := a.RPCAddr()
 	require.NoError(t, err)
 
 	conn, err := grpc.NewClient(fmt.Sprintf(
-		"%s",
+		"%s:///%s",
+		loadbalance.Name,
 		rpcAddr,
 	), opts...)
 	require.NoError(t, err)

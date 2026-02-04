@@ -61,12 +61,12 @@ func (r *Resolver) Build(
 	}
 
 	r.serviceConfig = r.clientConn.ParseServiceConfig(
-		fmt.Sprintf(`loadBalancingConfig:[{"%s":{}}]`, Name),
+		fmt.Sprintf(`{"loadBalancingConfig":[{"%s":{}}]}`, Name),
 	)
 
 	var err error
-	// Default to DNS resolver
-	r.resolverConn, err = grpc.NewClient(target.URL.Host, dialOpts...)
+	// Use Endpoint() which handles both "smolkafka://host" and "smolkafka:///host" formats
+	r.resolverConn, err = grpc.NewClient(target.Endpoint(), dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (r *Resolver) ResolveNow(resolver.ResolveNowOptions) {
 
 	res, err := client.GetServers(ctx, &api.GetServersRequest{})
 	if err != nil {
-		r.logger.Error("failed to resolveserver", zap.Error(err))
+		r.logger.Error("failed to resolve server", zap.Error(err))
 		return
 	}
 
