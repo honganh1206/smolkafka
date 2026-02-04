@@ -230,6 +230,22 @@ func (l *DistributedLog) Append(record *api.Record) (uint64, error) {
 	return res.(*api.ProduceResponse).Offset, nil
 }
 
+func (l *DistributedLog) GetServers() ([]*api.Server, error) {
+	future := l.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return nil, err
+	}
+	var servers []*api.Server
+	for _, srv := range future.Configuration().Servers {
+		servers = append(servers, &api.Server{
+			Id: string(srv.ID),
+			RpcAddr: string(srv.Address),
+			IsLeader: l.raft.Leader() == srv.Address,
+		})
+	}
+	return servers, nil
+}
+
 var _ raft.FSM = (*fsm)(nil)
 
 // The FSM must access the data it manages

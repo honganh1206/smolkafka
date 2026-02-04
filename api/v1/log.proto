@@ -20,6 +20,7 @@ service Log {
 	// Two streams operate independently, so the clients and servers can read and write in whatever order they like.
 	// Example: The server could wait to receive all clients' requests before sending back its response (used for batches or agggregating a response over multiple requests)
 	rpc ProduceStream(stream ProduceRequest) returns (stream ProduceResponse) {}
+    rpc GetServers(GetServersRequest) returns (GetServersResponse) {}
 }
 
 message ProduceRequest {
@@ -36,4 +37,16 @@ message ConsumeRequest {
 
 message ConsumeResponse {
 	Record record = 2;
+}
+
+message GetServersRequest {}
+
+message GetServersResponse {
+  repeated Server servers = 1;
+}
+
+message Server {
+  string id = 1;
+  string rpc_addr = 2;
+  bool is_leader = 3;
 }

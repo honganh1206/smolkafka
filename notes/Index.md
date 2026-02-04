@@ -17,3 +17,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Replicate Logs]]
 
 [[Service coordination]]
+
+[[Discover servers and Load Balance from the Client]]

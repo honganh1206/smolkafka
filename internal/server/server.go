@@ -24,6 +24,7 @@ import (
 type Config struct {
 	CommitLog
 	Authorizer
+	GetServerer
 }
 
 const (
@@ -229,4 +230,19 @@ type subjectContextKey struct{}
 func subject(ctx context.Context) string {
 	// Cast it to a specific type instead of any here
 	return ctx.Value(subjectContextKey{}).(string)
+}
+
+// Separate interface matching with DistributedLog.GetServers
+type GetServerer interface {
+	GetServers() ([]*api.Server, error)
+}
+
+func (s *grpcServer) GetServers(
+	ctx context.Context, req *api.GetServersRequest,
+) (*api.GetServersResponse, error) {
+	servers, err := s.GetServerer.GetServers()
+	if err != nil {
+		return nil, err
+	}
+	return &api.GetServersResponse{Servers: servers}, nil
 }
