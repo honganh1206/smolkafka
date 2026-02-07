@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "smolkafka.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{ include "smolkafka.labels" . | nindent 4 }}
+spec:
+  # Headless Service, no load balance to single IP
+  # since DNS queries return the individual pod IPs directly?
+  # Use when our distributed service has its own means for service discovery
+  clusterIP: None
+  # This is to bootstrap a cluster where nodes need to discover each other 
+  # combining with selector
+  # even before nodes becoming ready
+  publishNotReadyAddresses: true
+  ports:
+    - name: rpc
+      port: {{ .Values.rpcPort }}
+      targetPort: {{ .Values.rpcPort }}
+    # Handle both reliable operations (TCP) 
+    # and lightweight protocol messages (UDP)
+    - name: serf-tcp
+      protocol: "TCP"
+      port: {{ .Values.serfPort }}
+      targetPort: {{ .Values.serfPort }}
+    - name: serf-udp
+      protocol: "UDP"
+      port: {{ .Values.serfPort }}
+      targetPort: {{ .Values.serfPort }}
+  # k8s endpoint controller automatically cretes DNS A records
+  # pointing to each matching Pod's IP
+  # so each pod becomes individually addressable.
+  # Example: pod-0.smolkafka.namespace.svc.cluster.local
+  selector: {{ include "smolkafka.selectorLabels" . | nindent 4 }}
+
+
+
+

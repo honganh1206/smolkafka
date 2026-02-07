@@ -19,3 +19,5 @@ A good resource teaches you how to do something by and explains the big ideas be
 [[Service coordination]]
 
 [[Discover servers and Load Balance from the Client]]
+
+[[Deploying Applications with Kubernetes]]

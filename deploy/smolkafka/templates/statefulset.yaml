@@ -1,0 +1,63 @@
+# Using Go template
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "smolkafka.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{ include "smolkafka.labels" . | nindent 4 }}
+spec:
+  selector:
+    # Why indenting things here?
+    matchLabels: {{ include "smolkafka.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "smolkafka.fullname" . }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      name: {{ include "smolkafka.fullname" . }}
+      labels: {{ include "smolkafka.labels" . | nindent 8}}
+    specs:
+      # Set up our service's configuration file
+      initContainers:
+      - name: {{ include "smolkafka.fullname" . }}-config-init
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "/scripts/config-init.sh"]
+        volumeMounts:
+          - name: datadir
+            mountPath: /var/run/smolkafka
+          - name: scripts
+            mountPath: /scripts
+            readOnly: true
+      # Define our StatefulSet's app containers
+      containers:
+      - name: {{ include "smolkafka.fullname" . }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: {{ .Values.rpcPort }}
+          name: rpc
+        - containerPort: {{ .Values.serfPort }}
+          name: serf
+        args:
+          - --config-file=/var/run/smolkafka/config.yaml
+        # Tell k8s how to probe our services
+        readinessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.rpcPort }}"]
+          initialDelaySeconds: 10
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.rpcPort }}"]
+          initialDelaySeconds: 10
+        volumeMounts:
+        - name: datadir
+          mountPath: /var/run/smolkafka
+  # Fulfill the claim with a local disk, a disk from cloud provider, etc.
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.storage }}
+

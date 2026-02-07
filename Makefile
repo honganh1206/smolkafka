@@ -1,5 +1,6 @@
 # Where to put generated certs
-CONFIG_PATH=${HOME}/.proglog/
+CONFIG_PATH=${HOME}/.smolkafka/
+TAG ?= 0.0.1
 
 .PHONY: init
 init:
@@ -65,3 +66,6 @@ $(CONFIG_PATH)/policy.csv:
 .PHONY: test
 test: $(CONFIG_PATH)/policy.csv $(CONFIG_PATH)/model.conf
 	go test -race ./...
+
+build-docker:
+	docker build -t github.com/honganh1206/smolkafka:$(TAG) .
